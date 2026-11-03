@@ -29,6 +29,10 @@
     saved = { ...saved, [k]: n };
     try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch (e) { /* 저장 불가 기기는 무시 */ }
   };
+  A.resetStars = () => {
+    saved = {};
+    try { localStorage.removeItem(KEY); } catch (e) { /* 저장 불가 기기는 무시 */ }
+  };
   A.sumStars = (prefix) => Object.keys(saved).filter(k => k.startsWith(prefix)).reduce((s, k) => s + saved[k], 0);
 
   /* ---------- 소리: 기기 내장 음성(speechSynthesis) ---------- */
@@ -44,19 +48,106 @@
     speechSynthesis.onvoiceschanged = pickVoice;
   }
   // 소리 재생은 이 함수 한 곳만 거친다 (나중에 mp3 파일로 바꾸기 쉽게)
-  A.speak = (text) => {
-    if (!('speechSynthesis' in window) || !text) return;
+  // text: 문장 하나, 또는 [{text, node}] 목록. 목록은 한 줄씩 차례로 읽으며, 읽는 동안 그 node에 'reading' 효과를 준다.
+  // queue=true 이면 하던 말이 끝난 뒤에 이어서 말한다
+  const RATE_WORD = 0.75;       // 단어 하나는 조금만 느리게
+  const RATE_SENTENCE = 0.65;   // 문장(대사)은 더 천천히
+  const NO_START_MS = 1200;     // 읽기 시작 신호가 이만큼 안 오면 글자 수로 어림해서 효과를 준다
+  const MS_PER_CHAR = 95;
+  const rateOf = (text) => (/\s/.test(text.trim()) ? RATE_SENTENCE : RATE_WORD);
+  let lit = null;               // 지금 효과를 받는 { node, id }
+  let utterId = 0;
+  const light = (node, id) => {
+    lit?.node.classList.remove('reading');
+    lit = node ? { node, id } : null;
+    node?.classList.add('reading');
+  };
+  const unlight = (id) => { if (lit && lit.id === id) light(null); };
+  A.speak = (input, queue = false) => {
+    if (!('speechSynthesis' in window) || !input) return;
+    const parts = (Array.isArray(input) ? input : [input]).map(p => (typeof p === 'string' ? { text: p } : p)).filter(p => p.text);
+    if (!parts.length) return;
     try {
-      speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = 'en-US';
-      u.rate = 0.8;
-      u.pitch = 1.1;
-      if (voice) u.voice = voice;
-      speechSynthesis.speak(u);
+      if (!queue) { speechSynthesis.cancel(); light(null); }
+      let started = false;
+      const ids = parts.map(() => ++utterId);
+      parts.forEach((part, k) => {
+        const u = new SpeechSynthesisUtterance(part.text);
+        u.lang = 'en-US';
+        u.rate = rateOf(part.text);
+        u.pitch = 1.1;
+        if (voice) u.voice = voice;
+        if (part.node) {
+          u.onstart = () => { started = true; light(part.node, ids[k]); };
+          u.onend = u.onerror = () => unlight(ids[k]);
+        }
+        speechSynthesis.speak(u);
+      });
+      // 기기에 따라 시작 신호가 안 올 때: 글자 수로 어림해서 차례로 효과를 준다
+      if (parts.some(p => p.node)) {
+        setTimeout(() => {
+          if (started) return;
+          let at = 0;
+          parts.forEach((part, k) => {
+            const ms = part.text.length * MS_PER_CHAR / rateOf(part.text) * 0.8;
+            if (part.node) {
+              setTimeout(() => light(part.node, ids[k]), at);
+              setTimeout(() => unlight(ids[k]), at + ms);
+            }
+            at += ms;
+          });
+        }, NO_START_MS);
+      }
     } catch (e) { /* 소리 실패해도 놀이는 계속 */ }
   };
-  A.say = (w) => A.speak(w.say);
+  A.say = (w, queue = false) => A.speak(w.say, queue);
+
+  /* ---------- 효과음: 파일 없이 브라우저가 직접 만든다 (WebAudio) ---------- */
+  let audio = null;
+  const tone = (freq, start, len, type = 'sine', vol = 0.18) => {
+    if (!audio) return;
+    const o = audio.createOscillator(), g = audio.createGain();
+    o.type = type; o.frequency.value = freq;
+    const t0 = audio.currentTime + start;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol, t0 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
+    o.connect(g).connect(audio.destination);
+    o.start(t0); o.stop(t0 + len + 0.05);
+  };
+  A.sfx = (kind) => {
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      if (audio.state === 'suspended') audio.resume();
+      if (kind === 'ok') { tone(784, 0, 0.18); tone(988, 0.1, 0.18); tone(1319, 0.2, 0.3); }   // 띠리링
+      else if (kind === 'bad') { tone(330, 0, 0.16, 'triangle', 0.2); tone(262, 0.14, 0.26, 'triangle', 0.2); }   // 뿅
+      else if (kind === 'flip') tone(660, 0, 0.08, 'triangle', 0.12);
+    } catch (e) { /* 소리 못 내는 기기는 그냥 넘어간다 */ }
+  };
+
+  /* ---------- 영어 칭찬·격려 ---------- */
+  const PRAISE = [['Great job!', '잘했어요!'], ['Awesome!', '멋져요!'], ['Well done!', '참 잘했어요!'], ['Yay!', '야호!'], ['Super!', '최고!']];
+  const CHEER = [['Try again!', '다시 해봐요!'], ['You can do it!', '할 수 있어요!'], ['Almost!', '거의 다 왔어요!']];
+  const pickOf = (list) => list[A.rand(list.length)];
+  // 화면 가운데에 영어 말풍선(작은 한글 뜻 포함)을 잠깐 보여 준다
+  const popText = (pair, cls) => {
+    document.querySelectorAll('.praise').forEach(n => n.remove());
+    const b = A.el('div', `praise ${cls}`, `<b>${pair[0]}</b><small>${pair[1]}</small>`);
+    document.body.append(b);
+    setTimeout(() => b.remove(), 1100);
+  };
+  A.cheer = (first, speak = true) => {
+    const pair = pickOf(PRAISE);
+    A.sfx('ok');
+    popText(pair, first ? 'good star' : 'good');
+    if (speak) A.speak(pair[0]);
+  };
+  A.oops = (speak = true) => {
+    const pair = pickOf(CHEER);
+    A.sfx('bad');
+    popText(pair, 'try');
+    if (speak) A.speak(pair[0]);
+  };
   A.target = null;   // 스피커 버튼이 다시 들려줄 소리
   A.targetText = null;
 
@@ -109,6 +200,7 @@
     document.body.append(b);
     setTimeout(() => b.remove(), 650);
   };
+  const PRAISE_GAP_MS = 700;   // 칭찬 말이 끝나고 다음 단어 소리가 이어서 나온다
   A.shake = (node) => {
     node.classList.remove('shake');
     void node.offsetWidth;
@@ -121,8 +213,11 @@
   A.rounds = (ctx, renderQ, textFn) => {
     const order = A.shuffle(ctx.words);
     let i = 0, stars = 0;
+    let afterPraise = false;
     const next = () => {
       if (i >= order.length) return ctx.finish(stars, order.length);
+      const queue = afterPraise;
+      afterPraise = false;
       const w = order[i];
       A.target = textFn ? null : w;
       A.targetText = textFn ? textFn(w) : null;
@@ -135,17 +230,21 @@
           locked = true;
           if (!tried) stars++;
           A.burst(!tried);
+          A.cheer(!tried);
+          afterPraise = true;
           i++;
-          setTimeout(next, delay);
+          setTimeout(next, Math.max(delay, PRAISE_GAP_MS));
         },
         bad(node) {
           tried = true;
           if (node) A.shake(node);
-          if (textFn) A.speak(textFn(w)); else A.say(w);
+          A.oops();
+          if (textFn) A.speak(textFn(w), true); else A.say(w, true);
         },
       };
       renderQ(w, api);
-      if (textFn) A.speak(textFn(w)); else A.say(w);   // 문제가 나오면 소리가 바로 나온다
+      if (textFn) A.targetText = textFn(w);   // 보기까지 정해진 뒤의 문장으로 다시 읽어 준다
+      if (textFn) A.speak(textFn(w), queue); else A.say(w, queue);   // 문제가 나오면 소리가 바로 나온다
     };
     next();
   };

@@ -1,4 +1,4 @@
-// 레벨 2 놀이: 오엑스, 그림자 찾기, 복권 긁기
+// 레벨 2 놀이: 오엑스, 복권 긁기
 (function () {
   const { el, img } = A;
 
@@ -8,7 +8,7 @@
       A.rounds(ctx, (w, api) => {
         const same = Math.random() < 0.5;
         const shown = same ? w : A.choices(w, ctx, 2).find(x => x.id !== w.id);
-        const card = el('div', 'oxpic', img(shown, 'hero') + (ctx.diff >= 1 ? `<div class="word-en">${shown.en}</div>` : ''));
+        const card = el('div', 'oxpic', img(shown, 'hero') + `<div class="word-en">${shown.en}</div>`);
         const row = el('div', 'oxrow');
         const yes = el('button', 'btn ox o', 'O');
         const no = el('button', 'btn ox x', 'X');
@@ -20,33 +20,13 @@
     },
   };
 
-  A.games.shadow = {
-    name: '그림자 찾기', icon: '🌑', level: 2, desc: '소리의 주인공 그림자를 찾아요',
-    start(ctx) {
-      const n = ctx.diff === 0 ? 3 : 4;
-      A.rounds(ctx, (w, api) => {
-        const grid = el('div', `choices n${n}`);
-        A.choices(w, ctx, n).forEach(c => {
-          const b = el('button', 'btn choice shadow', img(c));
-          b.onclick = () => {
-            if (c.id !== w.id) return api.bad(b);
-            b.classList.add('reveal');   // 정답이면 색이 나타난다
-            api.ok();
-          };
-          grid.append(b);
-        });
-        ctx.stage.append(grid);
-      });
-    },
-  };
-
   A.games.scratch = {
     name: '복권 긁기', icon: '🎟️', level: 2, desc: '손가락으로 긁고, 맞는 카드를 눌러요',
     start(ctx) {
       A.rounds(ctx, (w, api) => {
         const grid = el('div', 'choices n3 scratchgrid');
         A.choices(w, ctx, 3).forEach(c => {
-          const box = el('div', 'scard', img(c));
+          const box = el('div', 'scard', img(c) + `<span class="lbl">${c.en}</span>`);
           const cv = el('canvas');
           box.append(cv);
           grid.append(box);
@@ -68,7 +48,7 @@
     g.globalCompositeOperation = 'destination-out';
     let opened = false, down = false, wasOpened = false, sx = 0, sy = 0, moved = 0, strokes = 0;
     const pos = (e) => { const r = cv.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
-    const dot = (x, y) => { g.beginPath(); g.arc(x, y, W * 0.12, 0, 7); g.fill(); };
+    const dot = (x, y) => { g.beginPath(); g.arc(x, y, Math.max(8, W * 0.06), 0, 7); g.fill(); };
     const revealedRatio = () => {
       const d = g.getImageData(0, 0, W, H).data;
       let clear = 0, total = 0;
