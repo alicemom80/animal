@@ -85,6 +85,7 @@
     });
   }
 
+  const whereIs = (w) => `Where is the ${w.say}?`;   // 미로·숨은그림찾기에서 읽어 주는 질문
   const GIRL_FALLBACK = "this.replaceWith(Object.assign(document.createElement('span'),{textContent:'👧'}))";
 
   A.games.maze = {
@@ -145,7 +146,7 @@
           pad.append(b);
         });
         ctx.stage.append(board, pad);
-      });
+      }, whereIs);
     },
   };
 
@@ -182,7 +183,7 @@
         const scene = el('div', `hscene${hasArt ? '' : ' noart'}`);
         if (hasArt) scene.style.backgroundImage = `url(${src})`;
         const slots = el('div', 'slots');
-        const order = A.shuffle(targets);
+        const order = [...targets].sort((a, b) => b.y - a.y);   // 아래쪽 동물부터: 위 동물의 이름표가 아래 동물을 가리지 않게
         const parts = new Map();   // 동물 id → { hot, slot }
 
         targets.forEach(s => {
@@ -204,9 +205,9 @@
         const ask = () => {
           const s = cur();
           tried = false; locked = false;
-          A.target = s.w; A.targetText = null;
+          A.target = null; A.targetText = whereIs(s.w);
           ctx.progress(i, order.length);
-          A.say(s.w, afterPraise);
+          A.speak(whereIs(s.w), afterPraise);
           afterPraise = false;
           clearTimeout(hintTimer);
           hintTimer = setTimeout(() => {
@@ -249,11 +250,11 @@
           if (tooSoon()) return;
           A.shake(parts.get(s.id).hot);
           A.oops();
-          A.say(cur().w, true);
+          A.speak(whereIs(cur().w), true);
         };
         scene.onclick = () => {               // 빈 곳을 눌렀다: 소리만 다시 (별은 그대로)
           if (locked || tooSoon()) return;
-          A.say(cur().w);
+          A.speak(whereIs(cur().w));
         };
 
         ctx.stage.replaceChildren(scene, slots);

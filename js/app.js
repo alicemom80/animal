@@ -7,7 +7,7 @@
   const MAX_STARS = 5;
 
   // 주제별 배경 그림 (images/bg/<이름>.webp)
-  const THEME_BG = { home: 'night', farm: 'farm', wild: 'forest', sea: 'beach', cold: 'beach', dino: 'night', bug: 'savanna', bird: 'savanna' };
+  const THEME_BG = { home: 'night', start: 'savanna', farm: 'farm', wild: 'forest', sea: 'beach', cold: 'beach', dino: 'night', bug: 'savanna', bird: 'savanna' };
   const setBg = (themeId) => {
     const name = THEME_BG[themeId];
     A.$('#bg').style.backgroundImage = name ? `url(images/bg/${name}.webp)` : 'none';
@@ -16,6 +16,8 @@
   // 좁은 칸에서 긴 영어 단어가 어색하게 끊기지 않도록, 끊어도 되는 자리(소프트 하이픈)를 표시한다
   const BREAK_AT = /(fish|fly|pillar|hopper|pecker|bird|saurus|saurolophus|raptor|ceratops|nodon|tooth|dile)$/;
   const breakable = (en) => (en.length > 8 && !en.includes(' ') ? en.replace(BREAK_AT, '­$1') : en);
+
+  A.setBg = setBg;
 
   const starRow =(n) => '⭐'.repeat(n) + '☆'.repeat(Math.max(0, MAX_STARS - n));
 
@@ -132,7 +134,7 @@
     gm.start(ctx);
   };
 
-  A.home();
+  A.start();
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});

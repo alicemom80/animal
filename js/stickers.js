@@ -30,7 +30,7 @@
   const rewardNode = ({ word, isNew }) => {
     const card = el('div', 'reward', `
       <div class="rpic">${img(word)}${isNew ? '<span class="rnew">NEW!</span>' : ''}</div>
-      <div class="rtext"><b>${word.en}</b><small>${isNew ? `${word.ko} 스티커를 받았어요!` : `${word.ko} 스티커 하나 더!`}</small></div>`);
+      <div class="rtext"><b>${word.en}</b><small>${isNew ? '스티커를 받았어요!' : '스티커 하나 더!'}</small></div>`);
     card.onclick = () => A.say(word);
     return card;
   };
