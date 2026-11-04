@@ -84,7 +84,7 @@
           b.anim.onfinish = () => { if (b.isConnected && !popped) launch(b, false); };
         };
         const balloons = A.choices(w, ctx, BALLOON_COUNT).map((c, k) => {
-          const b = el('button', 'balloon', `<div class="bball">${img(c)}${ctx.diff >= 1 ? `<span class="lbl">${c.en}</span>` : ''}</div>`);
+          const b = el('button', 'balloon', `<div class="bball">${img(c)}<span class="lbl" style="--n:${c.en.length}">${c.en}</span></div>`);
           b.slot = k;
           const ball = b.firstChild;
           ball.style.setProperty('--c', BALLOON_COLORS[k % BALLOON_COLORS.length]);

@@ -12,21 +12,18 @@
     ['Q', 70, 91, 0.9, -12], ['R', 52, 27, 0.7, 10], ['S', 22, 58, 0.7, -10], ['T', 74, 58, 0.7, 12],
   ];
 
-  // 폰·태블릿 브라우저: ▶를 누르면 주소창 없는 전체 화면이 되고, 풀리면 다음에 화면을 톡 누를 때 다시 켠다.
-  // 브라우저는 "사용자가 누른 순간"에만 전체 화면을 허락하므로, 자동으로 되돌릴 수는 없다.
+  // 폰·태블릿 브라우저: ▶를 누를 때 딱 한 번 전체 화면을 요청한다.
+  // (안드로이드 크롬은 전체 화면에 들어갈 때마다 "종료하려면 드래그" 안내를 띄우므로, 풀려도 다시 켜지 않는다.)
   // 마우스로 쓰는 컴퓨터와 이미 설치한 앱(주소창이 없는 모드)은 건너뛴다.
-  let keepFullscreen = false;
-  const requestFull = () => {
+  const requestFullOnce = () => {
     const root = document.documentElement;
-    if (!keepFullscreen || !root.requestFullscreen || document.fullscreenElement) return;
+    if (!root.requestFullscreen || document.fullscreenElement) return;
     if (matchMedia('(hover: hover) and (pointer: fine)').matches) return;
     if (matchMedia('(display-mode: fullscreen), (display-mode: standalone)').matches) return;
-    if (document.querySelector('.pmodal, .lockscreen')) return;   // 부모님 메뉴·잠금 화면에서는 방해하지 않는다
     try {
       root.requestFullscreen({ navigationUI: 'hide' })?.catch?.(() => { /* 막혀도 앱은 그대로 쓸 수 있다 */ });
     } catch (e) { /* 지원하지 않는 브라우저(아이폰 사파리 등) */ }
   };
-  document.addEventListener('pointerup', requestFull, true);
 
   A.start = function () {
     A.target = null; A.targetText = null;
@@ -43,8 +40,7 @@
     const go = el('button', 'btn startbtn', '▶');
     go.setAttribute('aria-label', '시작');
     go.onclick = () => {
-      keepFullscreen = true;
-      requestFull();   // 다른 동작보다 먼저: 누른 직후에만 허락된다
+      requestFullOnce();   // 다른 동작보다 먼저: 누른 직후에만 허락된다
       A.sfx('ok');
       A.home();
       A.speak(GREETING);

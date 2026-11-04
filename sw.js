@@ -1,5 +1,5 @@
 // 한 번 열면 인터넷 없이도 열리도록 파일을 저장해 두는 서비스 워커
-const CACHE = 'animal-english-v13';
+const CACHE = 'animal-english-v16';
 const FILES = [
   './', 'index.html', 'manifest.json', 'css/style.css', 'fonts/Jua.woff2', 'js/data.js',
   'js/scenes.js', 'js/core.js', 'js/games1.js', 'js/games2.js', 'js/games3.js', 'js/stickers.js',

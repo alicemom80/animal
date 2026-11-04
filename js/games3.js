@@ -92,6 +92,8 @@
     name: '미로 찾기', icon: '🌀', level: 3, desc: '소리의 주인공에게 길을 찾아가요',
     start(ctx) {
       const N = 5 + Math.min(ctx.diff, 2);
+      const spoken = new Map();   // 동물 id → 지금 화면의 [{text, node}] (말풍선이 읽을 때 번쩍이게)
+      const askText = (w) => spoken.get(w.id) || [];
       A.rounds(ctx, (w, api) => {
         const cells = makeMaze(N);
         const far = farthestCells(cells, N, 3);
@@ -145,8 +147,11 @@
           b.onclick = () => go(d);
           pad.append(b);
         });
-        ctx.stage.append(board, pad);
-      }, whereIs);
+        const bubble = el('div', 'bubble sm', whereIs(w));
+        spoken.set(w.id, [{ text: whereIs(w), node: bubble }]);
+        bubble.onclick = () => A.speak(askText(w));
+        ctx.stage.append(bubble, board, pad);
+      }, askText);
     },
   };
 
@@ -183,6 +188,9 @@
         const scene = el('div', `hscene${hasArt ? '' : ' noart'}`);
         if (hasArt) scene.style.backgroundImage = `url(${src})`;
         const slots = el('div', 'slots');
+        const bubble = el('div', 'bubble sm', '');
+        const askLine = (w) => [{ text: whereIs(w), node: bubble }];   // 읽을 때 말풍선이 번쩍인다
+        bubble.onclick = () => { if (!locked) A.speak(askLine(cur().w)); };
         const order = [...targets].sort((a, b) => b.y - a.y);   // 아래쪽 동물부터: 위 동물의 이름표가 아래 동물을 가리지 않게
         const parts = new Map();   // 동물 id → { hot, slot }
 
@@ -205,9 +213,10 @@
         const ask = () => {
           const s = cur();
           tried = false; locked = false;
-          A.target = null; A.targetText = whereIs(s.w);
+          A.target = null; A.targetText = askLine(s.w);
+          bubble.textContent = whereIs(s.w);
           ctx.progress(i, order.length);
-          A.speak(whereIs(s.w), afterPraise);
+          A.speak(askLine(s.w), afterPraise);
           afterPraise = false;
           clearTimeout(hintTimer);
           hintTimer = setTimeout(() => {
@@ -250,14 +259,14 @@
           if (tooSoon()) return;
           A.shake(parts.get(s.id).hot);
           A.oops();
-          A.speak(whereIs(cur().w), true);
+          A.speak(askLine(cur().w), true);
         };
         scene.onclick = () => {               // 빈 곳을 눌렀다: 소리만 다시 (별은 그대로)
           if (locked || tooSoon()) return;
-          A.speak(whereIs(cur().w));
+          A.speak(askLine(cur().w));
         };
 
-        ctx.stage.replaceChildren(scene, slots);
+        ctx.stage.replaceChildren(bubble, scene, slots);
         ask();
       }
     },
