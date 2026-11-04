@@ -39,7 +39,8 @@
   let voice = null;
   const pickVoice = () => {
     if (!('speechSynthesis' in window)) return;
-    const vs = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang));
+    // 폰 안에 내려받아 둔 음성만 쓴다 (이름만 있는 네트워크 음성은 소리가 안 날 수 있다)
+    const vs = speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang) && v.localService !== false);
     voice = vs.find(v => /en-US/i.test(v.lang) && /(female|samantha|google us|zira|aria|jenny)/i.test(v.name))
       || vs.find(v => /en-US/i.test(v.lang)) || vs[0] || null;
   };
@@ -54,6 +55,8 @@
   const RATE_SENTENCE = 0.65;   // 문장(대사)은 더 천천히
   const NO_START_MS = 1200;     // 읽기 시작 신호가 이만큼 안 오면 글자 수로 어림해서 효과를 준다
   const MS_PER_CHAR = 95;
+  const CANCEL_GAP_MS = 60;     // cancel 뒤 잠깐 쉬고 말한다
+  const RETRY_MS = 1800;        // 이 시간 안에 안 읽기 시작하면 기본 음성으로 다시
   const rateOf = (text) => (/\s/.test(text.trim()) ? RATE_SENTENCE : RATE_WORD);
   let lit = null;               // 지금 효과를 받는 { node, id }
   let utterId = 0;
@@ -68,21 +71,35 @@
     const parts = (Array.isArray(input) ? input : [input]).map(p => (typeof p === 'string' ? { text: p } : p)).filter(p => p.text);
     if (!parts.length) return;
     try {
-      if (!queue) { speechSynthesis.cancel(); light(null); }
       let started = false;
       const ids = parts.map(() => ++utterId);
-      parts.forEach((part, k) => {
-        const u = new SpeechSynthesisUtterance(part.text);
-        u.lang = 'en-US';
-        u.rate = rateOf(part.text);
-        u.pitch = 1.1;
-        if (voice) u.voice = voice;
-        if (part.node) {
-          u.onstart = () => { started = true; light(part.node, ids[k]); };
-          u.onend = u.onerror = () => unlight(ids[k]);
-        }
-        speechSynthesis.speak(u);
-      });
+      const sayAll = (useVoice) => {
+        parts.forEach((part, k) => {
+          const u = new SpeechSynthesisUtterance(part.text);
+          u.lang = 'en-US';
+          u.rate = rateOf(part.text);
+          u.pitch = 1.1;
+          if (useVoice && voice) u.voice = voice;
+          u.onstart = () => { started = true; if (part.node) light(part.node, ids[k]); };
+          if (part.node) u.onend = u.onerror = () => unlight(ids[k]);
+          speechSynthesis.speak(u);
+        });
+      };
+      if (queue) sayAll(true);
+      else {
+        const busy = speechSynthesis.speaking || speechSynthesis.pending;
+        speechSynthesis.cancel(); light(null);
+        // 일부 안드로이드 기기는 cancel 바로 뒤의 speak를 무시한다
+        if (busy) setTimeout(() => sayAll(true), CANCEL_GAP_MS); else sayAll(true);
+      }
+      // 지정한 음성이 소리를 못 내는 기기: 음성을 지정하지 않고 폰 기본 음성으로 한 번 더
+      if (voice && !queue) {
+        setTimeout(() => {
+          if (started) return;
+          speechSynthesis.cancel();
+          sayAll(false);
+        }, RETRY_MS);
+      }
       // 기기에 따라 시작 신호가 안 올 때: 글자 수로 어림해서 차례로 효과를 준다
       if (parts.some(p => p.node)) {
         setTimeout(() => {
