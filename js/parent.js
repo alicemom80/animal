@@ -1,21 +1,22 @@
 // 부모님 메뉴: ⚙ 버튼을 1초 꾹 누르면 열린다. 하루 놀이 시간을 재고, 다 되면 잠든 코끼리 잠금 화면이 뜬다.
 (function () {
   const { el } = A;
-  const KEY = 'animal-english-parent-v1';
+  const { lock: LOCK, playMinutes: PLAY } = A.CONFIG;
+  const KEY = A.storageKey('parent');
   const MINUTE = 60000;
   const HOLD_MS = 1000;        // 부모님 버튼을 누르고 있어야 하는 시간
   const HELD_FLAG_MS = 800;    // 꾹 누르기 뒤에 따라오는 click을 무시하는 시간
-  const DEFAULT_LIMIT_MIN = 15;
-  const MORE_MINUTES = 15;
-  const TEST_LIMIT_MIN = 1;
+  const DEFAULT_LIMIT_MIN = PLAY.default;
+  const MORE_MINUTES = PLAY.more;
+  const TEST_LIMIT_MIN = PLAY.test;
   const WARN_BEFORE_MS = MINUTE;
   const TICK_MS = 1000;
   const MAX_GAP_MS = 5000;     // 기기가 잠들었다 깨어난 틈은 이만큼만 센다
   const SAVE_EVERY_TICKS = 5;
   const TIP_MS = 2000;
   const TOAST_MS = 2500;
-  const LOCK_SPEECH = 'See you tomorrow! Good night!';
-  const UNLOCK_SPEECH = 'Welcome back!';
+  const LOCK_SPEECH = LOCK.speech;
+  const UNLOCK_SPEECH = LOCK.unlockSpeech;
 
   const today = () => new Date().toLocaleDateString('sv');   // 2026-11-03 모양
   const fresh = () => ({ day: today(), usedMs: 0, bonusMs: 0, limitMin: DEFAULT_LIMIT_MIN });
@@ -87,8 +88,8 @@
     });
     lockNode = el('div', 'lockscreen', `
       <div class="zzz" aria-hidden="true">Z z z</div>
-      <img class="sleepy" src="images/elephant.webp" alt="잠든 코끼리" draggable="false">
-      <p>오늘은 여기까지!<small>내일 또 만나요 · See you tomorrow! Good night!</small></p>`);
+      <img class="sleepy" src="${LOCK.image}" alt="${LOCK.imageAlt}" draggable="false">
+      <p>${LOCK.title}<small>${LOCK.sub}</small></p>`);
     lockNode.append(hold);
     document.body.append(lockNode);
     A.speak(LOCK_SPEECH);

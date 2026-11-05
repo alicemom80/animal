@@ -1,7 +1,7 @@
 // 스티커: 놀이를 끝내면 동물 스티커를 하나 받고, 스티커북에서 모은 동물을 볼 수 있어요
 (function () {
   const { el, img } = A;
-  const KEY = 'animal-english-stickers-v1';
+  const KEY = A.storageKey('stickers');
   const COLUMNS_TOTAL = () => A.THEMES.reduce((s, t) => s + t.words.length, 0);
 
   let owned = {};   // { 동물id: 받은 횟수 }

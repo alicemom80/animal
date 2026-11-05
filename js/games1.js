@@ -92,6 +92,7 @@
             if (popped) return;
             if (c.id !== w.id) return api.bad(ball);
             popped = true;
+            A.sfx('pop');
             balloons.forEach(x => x.anim?.pause());
             ball.classList.add('pop');
             api.ok();

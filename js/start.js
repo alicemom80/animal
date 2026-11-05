@@ -1,7 +1,7 @@
 // 시작 화면: 알파벳이 떠 있는 풀밭에 토끼 인사 + ▶ 버튼. 누르면 (폰이면) 전체 화면이 되고 주제 고르기로 간다.
 (function () {
   const { el, img } = A;
-  const GREETING = "Hello! Let's play with animals!";
+  const { greeting: GREETING, hero: HERO } = A.CONFIG.start;
   const LETTER_COLORS = ['#ff6b81', '#ff9f43', '#2fbfa6', '#4d9fff', '#a66bff', '#ff7ab6'];
   // 글자와 자리(화면의 % 위치), 크기(rem 비율), 기울기. 토끼와 버튼 둘레에 흩어 놓는다.
   const LETTERS = [
@@ -36,7 +36,7 @@
       s.style.cssText = `left:${x}%;top:${y}%;--s:${size};--r:${tilt}deg;--c:${LETTER_COLORS[i % LETTER_COLORS.length]};animation-delay:${(i % 7) * -0.5}s`;
       letters.append(s);
     });
-    const hero = el('div', 'starthero', img({ id: 'rabbit', en: 'rabbit' }, 'heropic'));
+    const hero = el('div', 'starthero', img(HERO, 'heropic'));
     const go = el('button', 'btn startbtn', '▶');
     go.setAttribute('aria-label', '시작');
     go.onclick = () => {
@@ -48,7 +48,7 @@
     page.append(
       A.parent.button(),
       letters,
-      el('h1', 'logo', '🐾 동물 영어 놀이 <small>Animal Play</small>'),
+      el('h1', 'logo', A.logoHtml()),
       hero,
       go,
     );

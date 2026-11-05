@@ -7,7 +7,7 @@
   const MAX_STARS = 5;
 
   // 주제별 배경 그림 (images/bg/<이름>.webp)
-  const THEME_BG = { home: 'night', start: 'savanna', farm: 'farm', wild: 'forest', sea: 'beach', cold: 'beach', dino: 'night', bug: 'savanna', bird: 'savanna' };
+  const THEME_BG = A.CONFIG.backgrounds;
   const setBg = (themeId) => {
     const name = THEME_BG[themeId];
     A.$('#bg').style.backgroundImage = name ? `url(images/bg/${name}.webp)` : 'none';
@@ -25,7 +25,7 @@
     A.target = null; A.targetText = null;
     setBg('home');
     const page = el('div', 'page homepage');
-    page.append(A.parent.button(), el('h1', 'logo', '🐾 동물 영어 놀이 <small>Animal Play</small>'));
+    page.append(A.parent.button(), el('h1', 'logo', A.logoHtml()));
     const grid = el('div', 'themes');
     A.THEMES.forEach(t => {
       const b = el('button', 'btn theme', `
@@ -128,6 +128,7 @@
         menu.onclick = goBack;
         const row = el('div', 'nav'); row.append(again, menu);
         stage.replaceChildren(done, row);
+        A.celebrateEnd(Boolean(reward));
         A.speak(A.stickers.rewardSpeech(reward));
       },
     };
