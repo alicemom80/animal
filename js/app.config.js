@@ -17,7 +17,7 @@ A.CONFIG = {
     image: 'images/elephant.webp',
     imageAlt: '잠든 코끼리',
     title: '오늘은 여기까지!',
-    sub: '내일 또 만나요 · See you tomorrow! Good night!',
+    sub: '내일 또 만나요<br>See you tomorrow! Good night!',
     speech: 'See you tomorrow! Good night!',
     unlockSpeech: 'Welcome back!',
   },

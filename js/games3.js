@@ -85,6 +85,7 @@
     });
   }
 
+  const MAZE_WRONG_GAP_MS = 1200;   // 틀린 칸을 다시 밟았을 때 격려를 또 하기까지 기다리는 시간
   const whereIs = (w) => `Where is the ${w.say}?`;   // 미로·숨은그림찾기에서 읽어 주는 질문
   const GIRL_FALLBACK = "this.replaceWith(Object.assign(document.createElement('span'),{textContent:'👧'}))";
 
@@ -114,11 +115,16 @@
         player.style.cssText = spot(0);
         board.append(player);
         requestAnimationFrame(() => paintMaze(canvas, cells, N));
+        let lastWrongAt = 0;   // 마지막으로 틀린 칸을 알린 시각
         const arrive = () => {
           player.style.cssText = spot(me);
           const found = items.get(me);
           if (!found) return;
-          if (found.id === w.id) api.ok(); else api.bad(player);
+          if (found.id === w.id) { api.ok(); return; }
+          const now = Date.now();
+          if (now - lastWrongAt < MAZE_WRONG_GAP_MS) return;   // 틀린 칸을 연달아 밟으면 격려를 한 번만
+          lastWrongAt = now;
+          api.bad(player);
         };
         const go = (d) => {
           const dx = [0, 1, 0, -1][d], dy = [-1, 0, 1, 0][d];
@@ -211,6 +217,7 @@
         const cur = () => order[i];
 
         const ask = () => {
+          if (!scene.isConnected) return;   // 놀이 화면을 떠났으면 묻지 않는다
           const s = cur();
           tried = false; locked = false;
           A.target = null; A.targetText = askLine(s.w);
@@ -292,9 +299,10 @@
         const addOption = (shownText, spokenText, correct) => {
           const b = el('button', 'btn answer', `<span>${shownText}</span>`);
           const line = { text: spokenText, node: b };
+          // 효과음을 먼저 내고, 효과음이 끝난 뒤에 누른 보기 문장을 읽는다 (칭찬·격려 목소리가 대답을 끊지 않게)
           b.onclick = () => {
-            A.speak(line);
-            if (correct) api.ok(1500); else { A.shake(b); api.bad(); }
+            if (correct) { api.ok(1500, true); A.speak(line); }
+            else api.bad(b, true, line);
           };
           lines.push(line);
           list.append(b);

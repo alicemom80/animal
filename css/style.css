@@ -83,8 +83,8 @@ html, body { margin: 0; height: 100%; color: var(--ink);
 /* 단어카드 */
 .bigcard { background: var(--card); border: 4px solid var(--line); border-radius: 32px; padding: 16px; text-align: center; box-shadow: var(--shadow); }
 .bigcard .hero { height: 38vh; max-height: 340px; margin: 0 auto; }
-.word-en { font-size: 53px; margin-top: 6px; } .word-ko { font-size: 31px; color: var(--sub); }
-.sentence { margin-top: 10px; width: 100%; font-size: 26px; }
+.word-en { font-size: clamp(30px, 13vw, 53px); margin-top: 6px; white-space: nowrap; } .word-ko { font-size: 31px; color: var(--sub); }
+.sentence { margin-top: 10px; width: 100%; font-size: clamp(16px, 6.2vw, 26px); }
 
 /* 고르기 */
 .choices { display: grid; gap: 14px; }
@@ -92,7 +92,7 @@ html, body { margin: 0; height: 100%; color: var(--ink);
 .choices.n4 { grid-template-columns: 1fr 1fr; }
 .choice { height: 24vh; min-height: 130px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
 .choices.n3.scratchgrid { grid-template-columns: 1fr; }
-.choice .pic { flex: 1 1 0; height: 0; width: 100%; min-height: 0; } .lbl { font-size: 22px; }
+.choice .pic { flex: 1 1 0; height: 0; width: 100%; min-height: 0; } .lbl { font-size: 22px; white-space: nowrap; }
 
 /* 풍선 */
 .sky { position: relative; flex: 1; min-height: 60vh; border-radius: 28px; background: linear-gradient(#8fd8ff, #d9f4ff); overflow: hidden; }
@@ -122,9 +122,9 @@ html, body { margin: 0; height: 100%; color: var(--ink);
 .oxrow { display: flex; gap: 14px; }
 .ox { flex: 1; height: 110px; font-size: 77px; color: #fff; }
 .ox.o { background: #3fbf6a; border-color: #2a9a50; } .ox.x { background: #ee5a5a; border-color: #c93e3e; }
-.bubble { background: #fff; color: #3b2f2f; border: 4px solid var(--line); border-radius: 28px; padding: 12px; text-align: center; font-size: 36px; }
+.bubble { background: #fff; color: #3b2f2f; border: 4px solid var(--line); border-radius: 28px; padding: 12px; text-align: center; font-size: 36px; white-space: nowrap; }
 .answers { display: flex; flex-direction: column; gap: 12px; }
-.answer { font-size: 31px; min-height: 76px; display: flex; align-items: center; justify-content: center; gap: 12px; }
+.answer { font-size: 31px; min-height: 76px; display: flex; align-items: center; justify-content: center; gap: 12px; white-space: nowrap; }
 
 /* 복권 */
 .scard { position: relative; height: 22vh; min-height: 130px; background: var(--card); border: 4px solid var(--line); border-radius: 24px; padding: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; box-shadow: var(--shadow); overflow: hidden; }
@@ -309,3 +309,18 @@ html, body { margin: 0; height: 100%; color: var(--ink);
 .igicon { display: inline-block; position: relative; width: 1.25em; height: 1.25em; margin-right: .35em; vertical-align: -.28em; border-radius: .34em; background: radial-gradient(circle at 30% 107%, #fdf497 0, #fdf497 5%, #fd5949 45%, #d6249f 60%, #285aeb 90%); }
 .igicon::before { content: ''; position: absolute; inset: .2em; border: .09em solid #fff; border-radius: .3em; background: radial-gradient(circle at 78% 24%, #fff 0, #fff .07em, transparent .08em); }
 .igicon::after { content: ''; position: absolute; left: 50%; top: 50%; width: .32em; height: .32em; transform: translate(-50%, -50%); border: .09em solid #fff; border-radius: 50%; }
+
+/* 세로 고정: 폰·태블릿(손가락으로 쓰는 기기)을 가로로 돌리면 이 안내가 화면을 덮는다. 컴퓨터에서는 안 나온다 */
+.rotate-note { display: none; }
+@media (orientation: landscape) and (hover: none) and (pointer: coarse) {
+  .rotate-note { display: flex; position: fixed; inset: 0; z-index: 200; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: #fff6dd; color: #4a3022; font-size: 26px; text-align: center; }
+  .rotate-note b { font-weight: 400; }
+  .rotate-note small { font-size: 16px; opacity: .7; }
+  .rotate-icon { font-size: 64px; line-height: 1; animation: rotate-hint 1.8s ease-in-out infinite; }
+}
+@keyframes rotate-hint { 0%, 20% { transform: rotate(-90deg); } 60%, 100% { transform: rotate(0); } }
+
+/* 짝 맞추기 카드 앞면: 그림 아래에 영어 이름 */
+.mcard .face.front { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: 6px 4px; }
+.mcard .face.front .pic { flex: 1 1 0; height: 0; width: 100%; min-height: 0; }
+.mcard .lbl { font-size: 15px; line-height: 1.2; white-space: nowrap; max-width: 100%; }

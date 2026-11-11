@@ -114,6 +114,7 @@
       stage,
       progress(i, n) { bar.firstChild.style.width = `${(i / n) * 100}%`; },
       finish(stars, total) {
+        if (!stage.isConnected) return;   // 놀이 화면을 떠난 뒤에는 끝 화면·소리·별 저장을 하지 않는다
         A.saveStars(`${t.id}:${gi}:${id}`, stars);
         A.target = null; A.targetText = null;
         const done = el('div', 'done', `

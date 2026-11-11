@@ -52,7 +52,7 @@ A.GROUP_SIZE = 5;
 A.THEMES.forEach(t => {
   t.words = t.words.map(([id, en, ko, say]) => ({
     id, en, ko, say: say || en,
-    art: /^[aeiou]/i.test(en) ? 'an' : 'a',
+    art: /^[aeiou]/i.test(en) && !/^uni/i.test(en) ? 'an' : 'a',   // unicorn 은 '유'로 시작하는 소리라 a
   }));
   t.groups = [];
   for (let i = 0; i < t.words.length; i += A.GROUP_SIZE) {

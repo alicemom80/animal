@@ -60,6 +60,9 @@
   const rateOf = (text) => (/\s/.test(text.trim()) ? RATE_SENTENCE : RATE_WORD);
   let lit = null;               // 지금 효과를 받는 { node, id }
   let utterId = 0;
+  let speakGen = 0;             // '끊고 새로 말하기'를 할 때마다 올라간다 (이미 지나간 말을 다시 읽지 않게 하는 번호)
+  let followers = [];           // 마지막 '끊고 새로 말하기' 뒤에 이어 붙인 말들 (다시 읽을 때 함께 읽는다)
+  let startAt = 0;              // cancel 뒤 쉬었다가 말을 시작하는 시각 (이어 붙이는 말은 이보다 뒤에 넣는다)
   const light = (node, id) => {
     lit?.node.classList.remove('reading');
     lit = node ? { node, id } : null;
@@ -94,25 +97,36 @@
           speechSynthesis.speak(u);
         });
       };
-      if (queue) sayAll(true);
-      else {
+      const gen = queue ? speakGen : ++speakGen;
+      const current = () => gen === speakGen;   // 그 사이 다른 말로 넘어가지 않았는가
+      if (queue) {
+        followers.push(sayAll);
+        // 앞의 말이 아직 시작 전(cancel 뒤 쉬는 중)이면 그 뒤에 붙인다 (순서가 뒤바뀌지 않게)
+        const wait = startAt - Date.now();
+        if (wait > 0) setTimeout(() => { if (current()) sayAll(true); }, wait + 1); else sayAll(true);
+      } else {
+        followers = [];
         const busy = speechSynthesis.speaking || speechSynthesis.pending;
         speechSynthesis.cancel(); light(null);
         // 일부 안드로이드 기기는 cancel 바로 뒤의 speak를 무시한다
-        if (busy) setTimeout(() => sayAll(true), CANCEL_GAP_MS); else sayAll(true);
+        if (busy) {
+          startAt = Date.now() + CANCEL_GAP_MS;
+          setTimeout(() => { if (current()) sayAll(true); }, CANCEL_GAP_MS);
+        } else { startAt = 0; sayAll(true); }
       }
       // 지정한 음성이 소리를 못 내는 기기: 음성을 지정하지 않고 폰 기본 음성으로 한 번 더
       if (voice && !queue) {
         setTimeout(() => {
-          if (started) return;
+          if (started || !current()) return;   // 이미 다음 말로 넘어갔으면 옛 말을 다시 읽지 않는다
           speechSynthesis.cancel();
           sayAll(false);
+          followers.forEach(again => again(false));   // 뒤에 이어 붙였던 말(문제 소리 등)도 함께 다시
         }, RETRY_MS);
       }
       // 기기에 따라 시작 신호가 안 올 때: 글자 수로 어림해서 차례로 효과를 준다
       if (parts.some(p => p.node)) {
         setTimeout(() => {
-          if (started) return;
+          if (started || !current()) return;
           let at = 0;
           parts.forEach((part, k) => {
             const ms = part.text.length * MS_PER_CHAR / rateOf(part.text) * 0.8;
@@ -138,6 +152,21 @@
     sayNow(input, queue);
   };
   A.say = (w, queue = false) => A.speak(w.say, queue);
+  // 문장 만들기: 단수는 "This is an apple.", 복수(w.plural)는 "These are jeans." 식으로 쓴다
+  // 관사가 비어 있는 단어(w.art === '': 색깔, 셀 수 없는 말)는 관사 없이 "This is red." 로 쓴다
+  // name 은 화면에 보일 이름(w.en) 또는 읽을 이름(w.say)
+  const withArt = (w, name) => (w.art ? `${w.art} ${name}` : name);
+  A.isLine = (w, name) => (w.plural ? `These are ${name}.` : `This is ${withArt(w, name)}.`);
+  A.askLine = (w, name) => (w.plural ? `Are these ${name}?` : `Is it ${withArt(w, name)}?`);
+  A.itLine = (w, name) => (w.plural ? `They are ${name}.` : `It's ${withArt(w, name)}.`);
+  A.whatLine = (w) => (w.plural ? 'What are these?' : 'What is this?');
+  // 화면을 떠날 때: 지금 말과 기다리는 말을 모두 멈춘다 (다시 읽기도 취소)
+  A.stopSpeech = () => {
+    speakGen++; followers = []; startAt = 0;
+    if (held) held.length = 0;
+    light(null);
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+  };
 
   /* ---------- 효과음: sounds/ 의 mp3를 미리 불러 두고, 못 쓰면 WebAudio 음(tone)으로 대신한다 ---------- */
   const SFX = {
@@ -255,6 +284,36 @@
 
   /* ---------- 화면 ---------- */
   A.app = $('#app');
+  /* ---------- 긴 영어 단어: 칸을 넘치면 그 칸만 글자를 줄인다 (짧은 단어는 그대로) ----------
+     묶음 화면의 작은 칩은 여기서 맞추지 않는다: 긴 공룡 이름은 app.js 의 breakable 이 두 줄로 끊는다.
+     CSS 는 nowrap 으로 두 줄 꺾임을 막고, 여기서는 넘치는 칸만 글자 크기를 맞춘다. */
+  const FIT_SELECTOR = '.word-en, .btn.sentence, .btn.answer span, .bubble:not(.sm), .choice .lbl, .scard .lbl, .mcard .lbl';
+  const FIT_MIN_PX = 10;     // 이보다 더 줄이지 않는다
+  const FIT_MARGIN = 0.97;   // 딱 맞으면 반올림 때문에 다시 넘칠 수 있어서 3% 여유를 둔다
+  const fitOne = (el) => {
+    el.style.fontSize = '';  // 먼저 CSS가 정한 기본 크기로 되돌린다
+    const cs = getComputedStyle(el);
+    // 칩의 글자(span)는 글자 길이만큼만 차지하므로, 글자가 들어갈 폭은 칩(부모) 안쪽으로 잰다
+    const box = el.matches('.chip span') ? el.parentElement : el;
+    const boxCs = getComputedStyle(box);
+    const inner = box.clientWidth - parseFloat(boxCs.paddingLeft) - parseFloat(boxCs.paddingRight);
+    const range = document.createRange();
+    range.selectNodeContents(el);
+    const textW = range.getBoundingClientRect().width;
+    if (!(inner > 0) || textW <= inner) return;
+    el.style.fontSize = Math.max(FIT_MIN_PX, parseFloat(cs.fontSize) * inner / textW * FIT_MARGIN) + 'px';
+  };
+  const fitTree = (root) => {
+    if (root.nodeType !== 1) return;
+    if (root.matches(FIT_SELECTOR)) fitOne(root);
+    root.querySelectorAll(FIT_SELECTOR).forEach(fitOne);
+  };
+  A.fitAll = () => fitTree(A.app);
+  new MutationObserver(recs => recs.forEach(r => r.addedNodes.forEach(fitTree)))
+    .observe(A.app, { childList: true, subtree: true });
+  window.addEventListener('resize', A.fitAll);
+  if (document.fonts) document.fonts.addEventListener('loadingdone', A.fitAll);   // 글꼴이 늦게 와도 다시 맞춘다
+
   A.show = (node) => {
     A.app.replaceChildren(node);
     A.pokeIdle();
@@ -265,7 +324,7 @@
     const bar = A.el('div', 'topbar');
     const back = A.el('button', 'btn round', onBack ? '⬅' : '🏠');
     back.setAttribute('aria-label', '뒤로');
-    back.onclick = () => { speechSynthesis.cancel?.(); (onBack || A.home)(); };
+    back.onclick = () => { A.stopSpeech(); (onBack || A.home)(); };
     const t = A.el('div', 'title', title);
     bar.append(back, t);
     if (withSpeaker) {
@@ -319,6 +378,20 @@
     node.classList.add('shake');
   };
 
+  // 소리가 완전히 멈출 때까지 기다렸다가 fn 실행 (소리가 멈춘 채로 두 번 연속 확인되면 통과, 너무 오래 걸리면 포기)
+  const SPEECH_POLL_MS = 200, SPEECH_IDLE_POLLS = 2, SPEECH_WAIT_MAX_MS = 9000;
+  const whenSpeechDone = (fn) => {
+    if (!('speechSynthesis' in window)) { fn(); return; }
+    const t0 = Date.now();
+    let idle = 0;
+    const tick = () => {
+      idle = (speechSynthesis.speaking || speechSynthesis.pending) ? 0 : idle + 1;
+      if (idle >= SPEECH_IDLE_POLLS || Date.now() - t0 > SPEECH_WAIT_MAX_MS) { fn(); return; }
+      setTimeout(tick, SPEECH_POLL_MS);
+    };
+    tick();
+  };
+
   /* ---------- 문제 돌리기 ----------
      renderQ(word, api): 문제 화면을 stage에 그린다.
      api.ok(): 정답 → 바로 다음 문제.  api.bad(): 오답 → 소리 다시, 벌점 없음. */
@@ -327,7 +400,11 @@
     let i = 0, stars = 0;
     let afterPraise = false;
     const next = () => {
-      if (i >= order.length) return ctx.finish(stars, order.length);
+      if (!ctx.stage.isConnected) return;   // 놀이 화면을 떠났으면 남은 타이머는 아무것도 하지 않는다
+      if (i >= order.length) {
+        ctx.progress(order.length, order.length);   // 끝 화면 전에 진행바를 100%로
+        return ctx.finish(stars, order.length);
+      }
       const queue = afterPraise;
       afterPraise = false;
       const w = order[i];
@@ -337,21 +414,28 @@
       ctx.stage.replaceChildren();
       let tried = false, locked = false;
       const api = {
-        ok(delay = 550) {
+        // waitSpeech: 말이 다 끝난 뒤에 다음 문제로 (묻고 답하기처럼 말이 긴 게임용)
+        ok(delay = 550, waitSpeech = false) {
           if (locked) return;
           locked = true;
           if (!tried) stars++;
           A.burst(!tried);
-          A.cheer(!tried);
+          A.cheer(!tried, !waitSpeech);   // 말이 긴 놀이(묻고 답하기)는 칭찬 소리가 보기 소리를 자르지 않게 뺀다
           afterPraise = true;
           i++;
-          setTimeout(next, Math.max(delay, PRAISE_GAP_MS));
+          setTimeout(() => (waitSpeech ? whenSpeechDone(next) : next()), Math.max(delay, PRAISE_GAP_MS));
         },
-        bad(node) {
+        // quiet: 격려 목소리를 빼고 효과음·말풍선만 낸다 (묻고 답하기: 방금 누른 보기 문장을 끊지 않게)
+        // readFirst: 효과음 뒤에 먼저 읽을 문장 (그 뒤에 문제 문장을 이어서 읽는다)
+        bad(node, quiet = false, readFirst = null) {
+          if (locked) return;   // 정답을 이미 맞힌 뒤의 누르기는 무시
           tried = true;
           if (node) A.shake(node);
-          A.oops();
-          if (textFn) A.speak(textFn(w), true); else A.say(w, true);
+          A.oops(!quiet);
+          if (readFirst) A.speak(readFirst);
+          // 다시 들려줄 때는 질문(첫 줄)만 읽는다. 보기까지 다 읽으면 너무 길다 (스피커 버튼·말풍선은 전부 읽는다)
+          const again = textFn ? textFn(w) : null;
+          if (textFn) A.speak(Array.isArray(again) ? again.slice(0, 1) : again, true); else A.say(w, true);
         },
       };
       renderQ(w, api);

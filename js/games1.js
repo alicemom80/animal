@@ -16,9 +16,9 @@
         card.innerHTML = `${img(w, 'hero')}
           <div class="word-en">${w.en}</div>
           <div class="word-ko">${w.ko}</div>
-          <button class="btn sentence">🔊 This is ${w.art} ${w.en}.</button>`;
+          <button class="btn sentence">🔊 ${A.isLine(w, w.en)}</button>`;
         card.querySelector('.hero').onclick = () => A.say(w);
-        card.querySelector('.sentence').onclick = () => A.speak(`This is ${w.art} ${w.say}.`);
+        card.querySelector('.sentence').onclick = () => A.speak(A.isLine(w, w.say));
         card.querySelector('.word-en').onclick = () => A.say(w);
         const nav = el('div', 'nav');
         const prev = el('button', 'btn big', '◀');
@@ -26,7 +26,10 @@
         prev.disabled = i === 0;
         prev.onclick = () => { i--; draw(); };
         next.onclick = () => {
-          if (i === ctx.words.length - 1) return ctx.finish(ctx.words.length, ctx.words.length);
+          if (i === ctx.words.length - 1) {
+            ctx.progress(ctx.words.length, ctx.words.length);   // 끝 화면 전에 진행바를 100%로
+            return ctx.finish(ctx.words.length, ctx.words.length);
+          }
           i++; draw();
         };
         nav.append(prev, next);
@@ -120,7 +123,7 @@
       ctx.progress(0, pairs);
       A.target = null;
       deck.forEach(d => {
-        const c = el('button', 'btn mcard', `<div class="face back">?</div><div class="face front">${img(d.w)}</div>`);
+        const c = el('button', 'btn mcard', `<div class="face back">?</div><div class="face front">${img(d.w)}<span class="lbl" lang="en">${d.w.en}</span></div>`);
         c.onclick = () => {
           if (busy || c.classList.contains('flip') || c.classList.contains('done')) return;
           c.classList.add('flip');
