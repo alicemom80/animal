@@ -27,5 +27,5 @@ A.CONFIG = {
   backgrounds: { home: 'night', start: 'savanna', farm: 'farm', wild: 'forest', sea: 'beach', cold: 'beach', dino: 'night', bug: 'savanna', bird: 'savanna' },
 };
 
-A.logoHtml = () => `${A.CONFIG.title.icon} ${A.CONFIG.title.ko} <small>${A.CONFIG.title.en}</small>`;
+A.logoHtml = (withSub) => `${A.CONFIG.title.icon} ${A.CONFIG.title.ko}${withSub && A.CONFIG.title.sub ? `<br>${A.CONFIG.title.sub}` : ''} <small>${A.CONFIG.title.en}</small>`;
 A.storageKey = (name) => `${A.CONFIG.storagePrefix}-${name}-v1`;
